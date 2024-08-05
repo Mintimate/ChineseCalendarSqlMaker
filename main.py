@@ -18,7 +18,7 @@ TARGET_TABLE = "WORK_CALENDAR"
 # 脚本生成的目标年份
 TARGET_YEAR = 2023
 # 生成代码的位置
-TARGET_SAVE_PATH = "work_calendar.csv"
+TARGET_SAVE_PATH = "work_calendar"
 
 
 class DATATYPE(Enum):
@@ -31,7 +31,7 @@ class DATATYPE(Enum):
     节日补班 = "2"
 
 
-def check_dir_exist(dir_path):
+def check_dir_exist(dir_path, file_name=None):
     """
     判断目录是否存在，不存在则创建并返回绝对路径
     """
@@ -40,6 +40,8 @@ def check_dir_exist(dir_path):
     if not os.path.isabs(dir_path):
         # 目录为相对路径，那么转换为绝对路径
         dir_path = os.path.abspath(dir_path)
+    if file_name is not None:
+        dir_path = os.path.join(dir_path, file_name)
     return dir_path
 
 
@@ -89,25 +91,32 @@ def judge_date_type(judge_date):
         return "NULL"
 
 
-def write_sql_file(parma0, parma1, parma2, parma3):
-    file_path_saver = "{FATHER_PATH}}.sql".format(parma0, parma1)
-    f = open('./2023Day.sql', 'a', encoding='utf-8')
-    parma3 = re.sub(r"\'", "\'\'", parma3)
-    # 追加内容
-    f.write("INSERT INTO " + TARGET_TABLE + " VALUES(\'%s\',\'%s\',\'%s\',\'%s\');" % (parma0, parma1, parma2, parma3))
-    f.write("\n")
-    f.close()
-
+def combine_sql(current_year, current_date, current_date_type, date_remark):
+    date_remark = re.sub(r"\'", "\'\'", date_remark)
+    # 构建SQL语句
+    sql = (
+        f"INSERT INTO {TARGET_TABLE} VALUES ("
+        f"'{current_year}', "
+        f"'{current_date}', "
+        f"'{current_date_type}', "
+        f"'{date_remark}'"
+        f");\n"
+    )
+    return sql
 
 if __name__ == "__main__":
     dataf = pd.DataFrame(columns=['YEAR', 'CALENDAR_DATE', 'DATE_TYPE', 'COMMENTS'])
+    save_sql = ""
     for index, one_date in enumerate(get_whole_year()):
-        type = judge_date_type(one_date).split('-')
-        if len(type) > 1:
-            write_sql_file(TARGET_YEAR, one_date, type[0], type[1])
-            dataf.loc[index] = [TARGET_YEAR, one_date, type[0], type[1]]
+        data_param = judge_date_type(one_date).split('-')
+        if len(data_param) > 1:
+            save_sql = save_sql + combine_sql(TARGET_YEAR, one_date, data_param[0], data_param[1])
+            dataf.loc[index] = [TARGET_YEAR, one_date, data_param[0], data_param[1]]
         else:
-            write_sql_file(TARGET_YEAR, one_date, type[0], "")
-            dataf.loc[index] = [TARGET_YEAR, one_date, type[0], ""]
-    dataf.to_csv("./2023Day.csv", index=False)
+            save_sql = save_sql + combine_sql(TARGET_YEAR, one_date, data_param[0], "")
+            dataf.loc[index] = [TARGET_YEAR, one_date, data_param[0], ""]
+    file_path_saver = "{FILE_FULL_PATH}".format(FILE_FULL_PATH=check_dir_exist(TARGET_SAVE_PATH,"{}Day".format(TARGET_YEAR)))
+    with open("{}.sql".format(file_path_saver), 'w') as f:
+        f.write(save_sql)
+    dataf.to_csv("{}.csv".format(file_path_saver), index=False)
     print(dataf)
