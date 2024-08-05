@@ -16,7 +16,7 @@ import pandas as pd
 # 生成SQL脚本的目标数据库
 TARGET_TABLE = "WORK_CALENDAR"
 # 脚本生成的目标年份
-TARGET_YEAR = 2023
+TARGET_YEAR = 2024
 # 生成代码的位置
 TARGET_SAVE_PATH = "work_calendar"
 
@@ -25,10 +25,30 @@ class DATATYPE(Enum):
     """
     日期类型枚举类
     """
-    普通工作日 = "0"
-    普通周末 = "3"
-    节日假期 = "1"
-    节日补班 = "2"
+    WORKDAY = ("0", "普通工作日")
+    WEEKEND = ("3", "普通周末")
+    HOLIDAY = ("1", "节日假期")
+    WORKING_HOLIDAY = ("2", "节日补班")
+
+    def __init__(self, code: str, description: str):
+        self.code = code
+        self.description = description
+
+    @property
+    def code(self) -> str:
+        return self._code
+
+    @code.setter
+    def code(self, value: str):
+        self._code = value
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @description.setter
+    def description(self, value: str):
+        self._description = value
 
 
 def check_dir_exist(dir_path, file_name=None):
@@ -72,22 +92,22 @@ def judge_date_type(judge_date):
     """
     date = datetime.datetime.strptime(judge_date, '%Y-%m-%d').date()
     if calendar.is_holiday(date):
-        print("%s是节假日" % judge_date)
+        print("{}是节假日".format(judge_date))
         on_holiday, holiday_name = calendar.get_holiday_detail(date)
         # 判断是否为节日（否：周末；是：节日）
         if holiday_name is not None:
-            return DATATYPE.节日假期.value + "-" + str(holiday_name)
+            return DATATYPE.HOLIDAY.code + "-" + str(holiday_name)
         else:
-            return DATATYPE.普通周末.value
+            return DATATYPE.WEEKEND.code
     elif calendar.is_workday(date):
         on_holiday, holiday_name = calendar.get_holiday_detail(date)
         if holiday_name is not None:
-            print("%s是补班日" % judge_date)
-            return DATATYPE.节日补班.value + "-" + str(holiday_name)
+            print("{}是补班日".format(judge_date))
+            return DATATYPE.WORKING_HOLIDAY.code + "-" + str(holiday_name)
         else:
-            return DATATYPE.普通工作日.value
+            return DATATYPE.WORKDAY.code
     else:
-        print("%s没有匹配" % judge_date)
+        print("{}没有匹配" .format(judge_date))
         return "NULL"
 
 
@@ -104,6 +124,7 @@ def combine_sql(current_year, current_date, current_date_type, date_remark):
     )
     return sql
 
+
 if __name__ == "__main__":
     dataf = pd.DataFrame(columns=['YEAR', 'CALENDAR_DATE', 'DATE_TYPE', 'COMMENTS'])
     save_sql = ""
@@ -115,7 +136,8 @@ if __name__ == "__main__":
         else:
             save_sql = save_sql + combine_sql(TARGET_YEAR, one_date, data_param[0], "")
             dataf.loc[index] = [TARGET_YEAR, one_date, data_param[0], ""]
-    file_path_saver = "{FILE_FULL_PATH}".format(FILE_FULL_PATH=check_dir_exist(TARGET_SAVE_PATH,"{}Day".format(TARGET_YEAR)))
+    file_path_saver = "{FILE_FULL_PATH}".format(
+        FILE_FULL_PATH=check_dir_exist(TARGET_SAVE_PATH, "{}Day".format(TARGET_YEAR)))
     with open("{}.sql".format(file_path_saver), 'w') as f:
         f.write(save_sql)
     dataf.to_csv("{}.csv".format(file_path_saver), index=False)
