@@ -102,13 +102,15 @@ def judge_date_type(judge_date):
     elif calendar.is_workday(date):
         on_holiday, holiday_name = calendar.get_holiday_detail(date)
         if holiday_name is not None:
+            # 节日名称为非空，说明是补班，否则就是普通工作日
             print("{}是补班日".format(judge_date))
             return DATATYPE.WORKING_HOLIDAY.code + "-" + str(holiday_name)
         else:
             return DATATYPE.WORKDAY.code
     else:
+        # 理论上不存在没有匹配的情况
         print("{}没有匹配" .format(judge_date))
-        return "NULL"
+        assert False
 
 
 def combine_sql(current_year, current_date, current_date_type, date_remark):
